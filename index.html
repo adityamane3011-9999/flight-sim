@@ -12,9 +12,23 @@
       canvas {
         display: block;
       }
+      /* New HUD Styling */
+      #hud {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        font-family: monospace;
+        font-size: 14px;
+        background-color: rgba(0, 0, 0, 0.3);
+        padding: 5px;
+        border-radius: 3px;
+        z-index: 100;
+      }
     </style>
   </head>
   <body>
+    <div id="hud"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
