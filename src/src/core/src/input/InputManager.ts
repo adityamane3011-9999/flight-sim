@@ -1,7 +1,7 @@
 export class InputManager {
   private readonly pressedKeys: Set<string> = new Set();
 
-  constructor() {
+  constructor() {   console.log("InputManager constructor started");
     window.addEventListener('keydown', this.handleKeyDown.bind(this));
     window.addEventListener('keyup', this.handleKeyUp.bind(this));
   }
