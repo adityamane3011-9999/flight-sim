@@ -22,7 +22,8 @@ export class App {
   private lastTime: number = 0;
   private accumulator: number = 0;
 
-  constructor() {
+  constructor() {  
+    console.log("App constructor started");
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
