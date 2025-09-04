@@ -1,29 +1,29 @@
 import * as THREE from 'three';
 import Stats from 'stats-js';
-import { InputManager } from '../input/InputManager';
-import { HUD } from '../ui/HUD';
+import { InputManager } from '../input/InputManager.ts';
+import { HUD } from '../ui/HUD.ts';
+import { Terrain } from '../world/Terrain.ts'; // Import the new Terrain class
 
-// Constants for our game loop
-const FIXED_TIMESTEP = 1 / 60; // 60 updates per second
-const MAX_FRAME_TIME = 0.25;   // Max time a single frame can take
+const FIXED_TIMESTEP = 1 / 60;
+const MAX_FRAME_TIME = 0.25;
 
 export class App {
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
-  private testCube: THREE.Mesh;
   private stats: Stats;
-  
-  // New components
   private inputManager: InputManager;
   private hud: HUD;
 
-  // Game loop variables
+  // New components
+  private terrain: Terrain;
+  private playerPosition: THREE.Vector3;
+  private playerVelocity: THREE.Vector3;
+
   private lastTime: number = 0;
   private accumulator: number = 0;
 
-  constructor() {  
-    console.log("App constructor started");
+  constructor() {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -31,30 +31,33 @@ export class App {
     document.body.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a2b3c);
-    
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.camera.position.z = 5;
+    this.scene.background = new THREE.Color(0x87ceeb); // A sky blue color
 
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-    this.testCube = new THREE.Mesh(geometry, material);
-    this.scene.add(this.testCube);
+    // Add Fog
+    this.scene.fog = new THREE.Fog(0x87ceeb, 1, 2000);
+
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
     
-    const light = new THREE.DirectionalLight(0xffffff, 3);
-    light.position.set(1, 1, 1);
-    this.scene.add(light);
+    // Add lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    this.scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(100, 100, 100);
+    this.scene.add(directionalLight);
     
     this.stats = new Stats();
     document.body.appendChild(this.stats.dom);
     
-    // Initialize new components
     this.inputManager = new InputManager();
     this.hud = new HUD();
 
+    // Initialize the new terrain and player
+    this.terrain = new Terrain(this.scene);
+    this.playerPosition = new THREE.Vector3(0, 100, 0); // Start 100m up
+    this.playerVelocity = new THREE.Vector3(0, 0, 0);
+
     window.addEventListener('resize', this.onWindowResize.bind(this));
     
-    // Start the new game loop
     this.update(0);
   }
 
@@ -64,47 +67,62 @@ export class App {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
   
-  // The main game loop
   private update(currentTime: number): void {
     requestAnimationFrame(this.update.bind(this));
-
-    // Calculate delta time (time since last frame)
     const deltaTime = Math.min((currentTime - this.lastTime) * 0.001, MAX_FRAME_TIME);
     this.lastTime = currentTime;
-
-    // Add time to the accumulator
     this.accumulator += deltaTime;
 
-    // Process fixed updates as many times as needed
     while (this.accumulator >= FIXED_TIMESTEP) {
       this.updatePhysics(FIXED_TIMESTEP);
       this.accumulator -= FIXED_TIMESTEP;
     }
 
-    // Render the scene
     this.render();
     this.stats.update();
   }
 
-  // Physics and game logic updates go here
   private updatePhysics(timestep: number): void {
-    // Simple example: Rotate cube based on input
+    const moveSpeed = 100; // meters per second
+    
+    // Simple player movement
+    if (this.inputManager.isKeyPressed('w')) {
+      this.playerVelocity.z = -moveSpeed;
+    } else if (this.inputManager.isKeyPressed('s')) {
+      this.playerVelocity.z = moveSpeed;
+    } else {
+      this.playerVelocity.z = 0;
+    }
+
     if (this.inputManager.isKeyPressed('a')) {
-      this.testCube.rotation.y += 2 * timestep;
+      this.playerVelocity.x = -moveSpeed;
+    } else if (this.inputManager.isKeyPressed('d')) {
+      this.playerVelocity.x = moveSpeed;
+    } else {
+      this.playerVelocity.x = 0;
     }
-    if (this.inputManager.isKeyPressed('d')) {
-      this.testCube.rotation.y -= 2 * timestep;
-    }
-    this.testCube.rotation.x += 0.5 * timestep;
+
+    this.playerPosition.x += this.playerVelocity.x * timestep;
+    this.playerPosition.z += this.playerVelocity.z * timestep;
+
+    // Update the terrain based on the player's new position
+    this.terrain.update(this.playerPosition);
   }
 
-  // Rendering updates go here
   private render(): void {
+    // Simple chase camera
+    this.camera.position.x = this.playerPosition.x;
+    this.camera.position.y = this.playerPosition.y + 50; // Camera is 50m above player
+    this.camera.position.z = this.playerPosition.z + 100; // And 100m behind
+    this.camera.lookAt(this.playerPosition);
+
     this.renderer.render(this.scene, this.camera);
     
-    // Update the HUD with debug information
-    const keyA = this.inputManager.isKeyPressed('a') ? 'PRESSED' : 'RELEASED';
-    const keyD = this.inputManager.isKeyPressed('d') ? 'PRESSED' : 'RELEASED';
-    this.hud.update(`Key A: ${keyA}\nKey D: ${keyD}`);
+    this.hud.update(
+      `Position:
+      X: ${this.playerPosition.x.toFixed(2)}
+      Y: ${this.playerPosition.y.toFixed(2)}
+      Z: ${this.playerPosition.z.toFixed(2)}`
+    );
   }
 }
