@@ -9,6 +9,5 @@
       "version": "lts"
     }
   },
-  "forwardPorts": [5173, 6080],
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y libgl1-mesa-dri"
+  "forwardPorts": [5173, 6080]
 }
